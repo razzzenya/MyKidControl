@@ -16,17 +16,21 @@ namespace MainLibrary
 
     class User
     {
-        private Dictionary<string, string> proccesses 
+        public Dictionary<string, string> proccesses 
         {
-            get { return proccesses; }
+            get => proccesses;
             set { proccesses = value; }
         } //name of proccess:time
-        private string name
-        {   
-            get { return name; } 
+        public string name
+        {
+            get => name; 
             set {  name = value; } 
         }
-        private string password;
+        public string password
+        {
+            get => password;
+            set { password = value; }
+        }
         public User()
         {
             name = "Иван";
@@ -45,7 +49,7 @@ namespace MainLibrary
         }
     }
 
-    public class UsersCollection
+    class UsersCollection
     {
         private List<User> users;
         public UsersCollection()
@@ -56,18 +60,16 @@ namespace MainLibrary
         {
             this.users = users;
         }
-        public void AddUser(User user)
-        {
-           users.Add(user);
-        }
+
+        public void AddUser(User user) => users.Add(user);
 
         public Dictionary<string, string> GetUserProccesses(string username)
         {
             foreach(User user in users) 
             {
-                if (user.Name() == username)
+                if (user.name == username)
                 {
-                    return user.Proccesses();
+                    return user.proccesses;
                 }
             }
             return null;
