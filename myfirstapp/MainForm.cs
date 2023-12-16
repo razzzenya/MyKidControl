@@ -1,69 +1,339 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Management;
 using System.Diagnostics;
-using TrackMethods;
+using System.Linq;
+using System.Timers;
+using System.Windows.Forms;
+using MainLibrary;
+using myfirstapp;
 
 namespace ParentControlApp
 {
     public partial class MainForm : Form
     {
+        public SuperUser suser = new SuperUser();
+        public User current_user = new User();
+        public bool is_password_entered = false;
+        public bool is_profile_chosen = false;
+        public bool is_processing = false;
+        public Dictionary<string, bool> processStatus = new Dictionary<string, bool>();
+        private System.Timers.Timer timer = new System.Timers.Timer(1000);
+        private NotifyIcon notifyIcon;
+        private Logger logger = new Logger();
+        private bool is_need_to_notify = true;
+
         public MainForm()
         {
             InitializeComponent();
-            Process[] processes = Process.GetProcesses();
-            string targetProcessName = "Notepad";
-            foreach (Process process in processes)
+            if (!suser.LoadFromFile())
             {
-                textBox1.Text += $"{process} запущен!";
-                //if (process.ProcessName.Equals(targetProcessName, StringComparison.OrdinalIgnoreCase))
-                //{
-                //    textBox1.Text += ($"{targetProcessName} запущен!");
-                //    break;
-                //}
+                MessageBox.Show("Файл суперпользователя был удалён!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                logger.LogDeletedSuserFile();
+                NewSuserPasswordForm form = new NewSuserPasswordForm();
+                form.ShowDialog();
+                if (!form.is_created)
+                {
+                    Close();
+                }
+                suser.LoadFromFile();
+                InitializeListView();
+                InitializeTrayIcon();
+                logger.LogStartApp();
+            }
+            else
+            {
+                suser.LoadFromFile();
+                InitializeListView();
+                InitializeTrayIcon();
+                logger.LogStartApp();
             }
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void InitializeTrayIcon()
         {
-            string processName = "Notepad";
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Visible = false;
+            notifyIcon.Icon = Properties.Resources.icon;
+            notifyIcon.Text = "Parent control app";
+            notifyIcon.MouseClick += NotifyIcon_MouseClick;
+        }
 
-            Process[] processes = Process.GetProcessesByName(processName);
+        private void InitializeListView()
+        {
+            processListView.Clear();
+            processListView.View = View.Details;
+            processListView.Columns.Add("Имя процесса", 150);
+            processListView.Columns.Add("Оставшееся время", 150);
+        }
 
-            foreach (Process process in processes)
+        private void UpdateListView(string processName)
+        {
+            if (processListView.InvokeRequired)
             {
-                try
+                processListView.Invoke(new Action<string>(UpdateListView), processName);
+            }
+            else
+            {
+                ListViewItem item = processListView.FindItemWithText(processName);
+                if (item == null)
                 {
-                    process.CloseMainWindow();
-                    if (!process.WaitForExit(5000))
-                    {
-                        process.Kill();
-                    }
+                    item = new ListViewItem(processName);
+                    item.SubItems.Add(current_user.Processes[processName]);
+                    processListView.Items.Add(item);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine($"Ошибка при закрытии процесса {process.ProcessName}: {ex.Message}");
+                    item.SubItems[1].Text = current_user.Processes[processName];
                 }
             }
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            var a = new Dictionary<string, string>()
+            if (is_processing)
             {
-                {"Notepad", "1000" }
-            };
+                MessageBox.Show("Завершите сессию для работы с профилями!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            ProfilesForm form  = new ProfilesForm(is_password_entered);
+            form.ShowDialog();
+            if (form.is_any_chosen)
+            {
+                if (timer.Enabled)
+                {
+                    logger.LogEndSession(current_user.Name);
+                    timer.Stop();
+                }
+                is_need_to_notify = true;
+                current_user = form.users.Users[form.selected_user_index];
+                is_profile_chosen = true;
+                label2.Text = "Профиль: " + current_user.Name;
+                processListView.Items.Clear();
+                foreach (var process in current_user.Processes)
+                {
+                    ListViewItem item = new ListViewItem(new[] { process.Key, process.Value });
+                    processListView.Items.Add(item);
+                }
+            }
+        }
 
-            TrackMethods.User user = new TrackMethods.User(a, "Ivan", "1234");
-            TrackMethods.UsersCollection users = new TrackMethods.UsersCollection();
-            users.AddUser(user);
+        private void войтиКакСуперпользовательToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!is_password_entered)
+            {
+                SuserinputpasswordForm form = new SuserinputpasswordForm(suser);
+                form.ShowDialog();
+                if (form.is_password_correct)
+                {
+                    is_password_entered = true;
+                    logger.LogSuserLogIn();
+                }
+                else
+                {
+                    is_password_entered = false;
+                }
+            }
+            else
+            {
+                MessageBox.Show("Пароль уже введен","", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if(is_password_entered)
+            {
+                is_password_entered=false;
+                logger.LogSuserLogOut();
+                MessageBox.Show("Вы успешно вышли", "", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("Вы не вошли как суперпользователь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void Start_Click(object sender, EventArgs e)
+        {
+            if (!is_profile_chosen)
+            {
+                MessageBox.Show("Профиль не был выбран", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            else if (is_processing){
+                MessageBox.Show("Сессия уже запущена", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            else
+            {
+                logger.LogStartSession(current_user.Name);
+                is_processing = true;
+                processStatus = new Dictionary<string, bool>();
+                foreach (var processName in current_user.Processes.Keys)
+                {
+                    processStatus[processName] = false;
+                }
+                StartTracking();
+            }
+        }
+
+        private void StartTracking()
+        {
+            timer.Elapsed += TimerElapsed;
+            timer.Start();
+        }
+
+        private void TimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            var activeProcesses = Process.GetProcesses().Select(p => p.ProcessName).ToList();
+
+            foreach (var processName in current_user.Processes.Keys.ToList())
+            {
+                bool wasActive = processStatus[processName];
+
+                if (activeProcesses.Contains(processName))
+                {
+                    processStatus[processName] = true;
+                    var timeSpan = TimeSpan.Parse(current_user.Processes[processName]);
+                    if(timeSpan <= TimeSpan.Zero)
+                    {
+                        CloseProcess(processName);
+                        break;
+                    }
+                    timeSpan = timeSpan.Subtract(TimeSpan.FromSeconds(1));
+                    UpdateListView(processName);
+                    current_user.Processes[processName] = timeSpan.ToString();
+
+                    if (timeSpan.TotalSeconds <= 0)
+                    {
+                        CloseProcess(processName);
+                    }
+                }
+                else
+                {
+                    processStatus[processName] = false;
+                }
+            }
+
+            if (current_user.Processes.All(p => TimeSpan.Parse(p.Value).TotalSeconds <= 0))
+            {
+                if (is_need_to_notify)
+                {
+                    NotifyUser();
+                }
+            }
+        }
+
+        public void NotifyUser()
+        {
+            is_need_to_notify = false;
+            is_processing = false;
+            logger.LogThatUserNotified(current_user.Name);
+            MessageBox.Show("Ваше допустимое время для всех приложений закончилось", "", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private static void CloseProcess(string processName)
+        {
+            Process[] processes = Process.GetProcessesByName(processName);
+            foreach (Process process in processes)
+            {
+                process.Kill();
+            }
+        }
+
+        private void SuserActionsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!is_password_entered)
+            {
+                MessageBox.Show("Для начала войдите как суперпользователь", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            else
+            {
+                SuserActionsForm form = new SuserActionsForm(suser.SuperuserPassword);
+                form.ShowDialog();
+                if (form.is_changed)
+                {
+                    suser.SetNewPassword(form.password);
+                    suser.SaveToFile();
+                }
+            }
+        }
+
+        private void End_Click(object sender, EventArgs e)
+        {
+            if (!is_processing && !timer.Enabled)
+            {
+                MessageBox.Show("Вы еще не начали сессию", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            else if (!is_processing && timer.Enabled)
+            {
+                is_profile_chosen = false;
+                processStatus = null;
+                is_need_to_notify = true;
+                timer.Stop();
+                logger.LogEndSessionWhenTimeIsGone(current_user.Name);
+                current_user = null;
+                InitializeListView();
+                label2.Text = "Выберите профиль";
+                MessageBox.Show("Сессия была закончена", "", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (!is_profile_chosen)
+            {
+               MessageBox.Show("Вы не выбрали пользователя", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            is_processing = false;
+            is_profile_chosen = false;
+            processStatus = null;
+            is_need_to_notify = true;
+            timer.Stop();
+            logger.LogForciblyEndSession(current_user.Name);
+            current_user = null;
+            InitializeListView();
+            label2.Text = "Выберите профиль";
+        }
+
+        private void NotifyIcon_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ShowFromTray();
+            }
+        }
+
+        private void HideToTray()
+        {
+            Hide();
+            notifyIcon.Visible = true;
+        }
+
+        private void ShowFromTray()
+        {
+            Show();
+            notifyIcon.Visible = false;
+            WindowState = FormWindowState.Normal;
+        }
+
+        private void спрятатьВТрейToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            HideToTray();
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (is_processing || timer.Enabled)
+            {
+                e.Cancel = true;
+                HideToTray();
+            }
+            else if(!is_processing && !timer.Enabled)
+            {
+                logger.LogExitApp();
+            }
         }
     }
 }
