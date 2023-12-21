@@ -6,7 +6,7 @@ namespace ParentControlApp
 {
     public partial class PasswordForm : Form
     {
-        Logger logger = new Logger();
+        readonly Logger logger = new Logger();
         public PasswordForm()
         {
             InitializeComponent();
@@ -19,7 +19,7 @@ namespace ParentControlApp
             if (first_password == second_password)
             {
                 SuperUser new_suser = new SuperUser();
-                new_suser.SetNewPassword(first_password);
+                new_suser.SuperuserPassword = first_password;
                 logger.LogNewSuperuserPassword(first_password, first_password);
                 new_suser.SaveToFile();
                 Close();

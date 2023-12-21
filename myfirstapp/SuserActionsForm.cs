@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Windows.Forms;
 using MainLibrary;
-using myfirstapp;
 
 namespace ParentControlApp
 {
@@ -41,6 +40,12 @@ namespace ParentControlApp
         {
             logger.ClearLogs();
             MessageBox.Show("Файл с логами был успешно очищен", "", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            StatisticsForm form = new StatisticsForm();
+            form.ShowDialog();
         }
     }
 }

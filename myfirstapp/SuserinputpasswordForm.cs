@@ -2,7 +2,7 @@
 using System.Windows.Forms;
 using MainLibrary;
 
-namespace myfirstapp
+namespace ParentControlApp
 {
     public partial class SuserinputpasswordForm : Form
     {
@@ -16,7 +16,7 @@ namespace myfirstapp
 
         private void button1_Click(object sender, EventArgs e)
         {
-            if (!suser.CheckPassword(textBox1.Text))
+            if (suser.SuperuserPassword != textBox1.Text)
             {
                 MessageBox.Show("Пароли не совпадают!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }

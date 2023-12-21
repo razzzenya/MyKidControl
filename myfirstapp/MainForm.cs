@@ -6,7 +6,6 @@ using System.Linq;
 using System.Timers;
 using System.Windows.Forms;
 using MainLibrary;
-using myfirstapp;
 
 namespace ParentControlApp
 {
@@ -17,11 +16,13 @@ namespace ParentControlApp
         public bool is_password_entered = false;
         public bool is_profile_chosen = false;
         public bool is_processing = false;
-        public Dictionary<string, bool> processStatus = new Dictionary<string, bool>();
-        private System.Timers.Timer timer = new System.Timers.Timer(1000);
+        private readonly System.Timers.Timer timer = new System.Timers.Timer(1000);
         private NotifyIcon notifyIcon;
-        private Logger logger = new Logger();
+        private readonly Logger logger = new Logger();
         private bool is_need_to_notify = true;
+        private UsersCollection users = new UsersCollection();
+        private int current_user_index;
+        private DateTime start;
 
         public MainForm()
         {
@@ -36,6 +37,7 @@ namespace ParentControlApp
                 {
                     Close();
                 }
+                users.LoadFromFile();
                 suser.LoadFromFile();
                 InitializeListView();
                 InitializeTrayIcon();
@@ -43,6 +45,7 @@ namespace ParentControlApp
             }
             else
             {
+                users.LoadFromFile();
                 suser.LoadFromFile();
                 InitializeListView();
                 InitializeTrayIcon();
@@ -105,8 +108,10 @@ namespace ParentControlApp
                     logger.LogEndSession(current_user.Name);
                     timer.Stop();
                 }
+                users.LoadFromFile();
                 is_need_to_notify = true;
                 current_user = form.users.Users[form.selected_user_index];
+                current_user_index = form.selected_user_index;
                 is_profile_chosen = true;
                 label2.Text = "Профиль: " + current_user.Name;
                 processListView.Items.Clear();
@@ -169,17 +174,14 @@ namespace ParentControlApp
             {
                 logger.LogStartSession(current_user.Name);
                 is_processing = true;
-                processStatus = new Dictionary<string, bool>();
-                foreach (var processName in current_user.Processes.Keys)
-                {
-                    processStatus[processName] = false;
-                }
+                start = DateTime.Now;
                 StartTracking();
             }
         }
 
         private void StartTracking()
         {
+            timer.Elapsed -= TimerElapsed;
             timer.Elapsed += TimerElapsed;
             timer.Start();
         }
@@ -190,11 +192,8 @@ namespace ParentControlApp
 
             foreach (var processName in current_user.Processes.Keys.ToList())
             {
-                bool wasActive = processStatus[processName];
-
                 if (activeProcesses.Contains(processName))
                 {
-                    processStatus[processName] = true;
                     var timeSpan = TimeSpan.Parse(current_user.Processes[processName]);
                     if(timeSpan <= TimeSpan.Zero)
                     {
@@ -210,10 +209,6 @@ namespace ParentControlApp
                         CloseProcess(processName);
                     }
                 }
-                else
-                {
-                    processStatus[processName] = false;
-                }
             }
 
             if (current_user.Processes.All(p => TimeSpan.Parse(p.Value).TotalSeconds <= 0))
@@ -227,6 +222,8 @@ namespace ParentControlApp
 
         public void NotifyUser()
         {
+            users.Users[current_user_index].TimeStatistics[start] = DateTime.Now - start;
+            users.SaveToFile();
             is_need_to_notify = false;
             is_processing = false;
             logger.LogThatUserNotified(current_user.Name);
@@ -255,7 +252,7 @@ namespace ParentControlApp
                 form.ShowDialog();
                 if (form.is_changed)
                 {
-                    suser.SetNewPassword(form.password);
+                    suser.SuperuserPassword = form.password;
                     suser.SaveToFile();
                 }
             }
@@ -271,7 +268,6 @@ namespace ParentControlApp
             else if (!is_processing && timer.Enabled)
             {
                 is_profile_chosen = false;
-                processStatus = null;
                 is_need_to_notify = true;
                 timer.Stop();
                 logger.LogEndSessionWhenTimeIsGone(current_user.Name);
@@ -286,9 +282,10 @@ namespace ParentControlApp
                MessageBox.Show("Вы не выбрали пользователя", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+            users.Users[current_user_index].TimeStatistics[start] = DateTime.Now - start;
+            users.SaveToFile();
             is_processing = false;
             is_profile_chosen = false;
-            processStatus = null;
             is_need_to_notify = true;
             timer.Stop();
             logger.LogForciblyEndSession(current_user.Name);

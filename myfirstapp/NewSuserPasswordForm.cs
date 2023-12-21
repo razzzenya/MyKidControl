@@ -2,7 +2,7 @@
 using System.Windows.Forms;
 using MainLibrary;
 
-namespace myfirstapp
+namespace ParentControlApp
 {
     public partial class NewSuserPasswordForm : Form
     {
@@ -20,7 +20,7 @@ namespace myfirstapp
             {
                 is_created = true;
                 SuperUser new_suser = new SuperUser();
-                new_suser.SetNewPassword(first_password);
+                new_suser.SuperuserPassword = first_password;
                 new_suser.SaveToFile();
                 Close();
             }

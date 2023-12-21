@@ -1,4 +1,4 @@
-﻿namespace myfirstapp
+﻿namespace ParentControlApp
 {
     partial class ChangeUserNameForm
     {

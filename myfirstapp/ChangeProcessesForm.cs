@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 
-namespace myfirstapp
+namespace ParentControlApp
 {
     public partial class ChangeProcessesForm : Form
     {

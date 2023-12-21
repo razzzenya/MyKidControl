@@ -2,9 +2,8 @@
 using System.IO;
 using System.Windows.Forms;
 using MainLibrary;
-using ParentControlApp;
 
-namespace myfirstapp
+namespace ParentControlApp
 {
     public partial class ProfilesForm : Form
     {
@@ -152,8 +151,8 @@ namespace myfirstapp
             form.ShowDialog();
             if (form.users_choice)
             {
-                users.Users.Remove(users.Users[selected_user_index]);
                 logger.LogDeletingUser(users.Users[selected_user_index].Name);
+                users.Users.Remove(users.Users[selected_user_index]);
                 users.SaveToFile();
                 UpdateProfilesList();
             }

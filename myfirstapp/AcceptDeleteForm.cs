@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace myfirstapp
+namespace ParentControlApp
 {
     public partial class AcceptDeleteForm : Form
     {

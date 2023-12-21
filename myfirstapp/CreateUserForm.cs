@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 using MainLibrary;
-using myfirstapp;
 
 namespace ParentControlApp
 {
@@ -93,7 +92,7 @@ namespace ParentControlApp
             }
             user.Processes = processes;
             user.Name = textBox1.Text;
-            user.SetPassword(textBox2.Text);
+            user.Password = textBox2.Text;
             is_created = true;
             Close();
         }

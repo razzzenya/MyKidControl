@@ -14,20 +14,12 @@ namespace MainLibrary
 
     public class Logger
     {
-        private List<string> logs = new List<string>();
-        public List<string> Logs
-        {
-            get => logs;
-            set { logs = value; }
-        }
-
         public void ClearLogs()
         {
             string directoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ParentControl");
             string logFilePath = Path.Combine(directoryPath, "logs.dat");
             File.WriteAllText(logFilePath, "");
         }
-
 
         public void LogStartApp()
         {
@@ -319,16 +311,6 @@ namespace MainLibrary
             get => _superuser_password;
             set { _superuser_password = value; }
         }
-        
-        public void SetNewPassword(string newPassword)
-        {
-            SuperuserPassword = newPassword;
-        }
-
-        public bool CheckPassword(string inputPassword)
-        {
-            return SuperuserPassword == inputPassword;
-        }
 
         public void SaveToFile()
         {
@@ -422,6 +404,14 @@ namespace MainLibrary
             set { _processes = value; }
         }
 
+        private Dictionary<DateTime, TimeSpan> _timestatistics;
+
+        public Dictionary<DateTime, TimeSpan> TimeStatistics
+        {
+            get { return _timestatistics ?? (_timestatistics = new Dictionary<DateTime, TimeSpan>()); }
+            set { _timestatistics = value; }
+        }
+
         private string _name;
 
         public string Name
@@ -436,11 +426,6 @@ namespace MainLibrary
         {
             get => _password;
             set { _password = value; }
-        }
-
-        public void SetPassword(string newPassword)
-        {
-            Password = newPassword;
         }
 
         public User(){}
